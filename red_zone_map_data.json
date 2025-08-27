@@ -1,12 +1,252 @@
 {
     "zones": [
         {
+            "grid_id": "6523_15394",
+            "complaint_count": 346,
+            "risk_level": "RED",
+            "color": "#FF0000",
+            "center_lat": 29.355002760364666,
+            "center_lon": 79.48201507272293
+        },
+        {
+            "grid_id": "6533_15376",
+            "complaint_count": 332,
+            "risk_level": "RED",
+            "color": "#FF0000",
+            "center_lat": 29.399003356188114,
+            "center_lon": 79.42100177933094
+        },
+        {
             "grid_id": "6531_15385",
-            "complaint_count": 1,
-            "risk_level": "GREEN",
-            "color": "#00FF00",
-            "center_lat": 29.391,
-            "center_lon": 79.461
+            "complaint_count": 648,
+            "risk_level": "RED",
+            "color": "#FF0000",
+            "center_lat": 29.39101208484846,
+            "center_lon": 79.46150141783318
+        },
+        {
+            "grid_id": "6529_15383",
+            "complaint_count": 29,
+            "risk_level": "ORANGE",
+            "color": "#FFA500",
+            "center_lat": 29.3849873920518,
+            "center_lon": 79.44982251217111
+        },
+        {
+            "grid_id": "6529_15384",
+            "complaint_count": 189,
+            "risk_level": "RED",
+            "color": "#FF0000",
+            "center_lat": 29.384929160713163,
+            "center_lon": 79.4500410602414
+        },
+        {
+            "grid_id": "6524_15396",
+            "complaint_count": 319,
+            "risk_level": "RED",
+            "color": "#FF0000",
+            "center_lat": 29.360998948833654,
+            "center_lon": 79.49500356254009
+        },
+        {
+            "grid_id": "6531_15380",
+            "complaint_count": 323,
+            "risk_level": "RED",
+            "color": "#FF0000",
+            "center_lat": 29.390000385844893,
+            "center_lon": 79.43498985112335
+        },
+        {
+            "grid_id": "6530_15383",
+            "complaint_count": 68,
+            "risk_level": "RED",
+            "color": "#FF0000",
+            "center_lat": 29.385133978099326,
+            "center_lon": 79.44989637788223
+        },
+        {
+            "grid_id": "6530_15384",
+            "complaint_count": 72,
+            "risk_level": "RED",
+            "color": "#FF0000",
+            "center_lat": 29.385099530032434,
+            "center_lon": 79.4501069363218
+        },
+        {
+            "grid_id": "6532_15383",
+            "complaint_count": 358,
+            "risk_level": "RED",
+            "color": "#FF0000",
+            "center_lat": 29.394991800377625,
+            "center_lon": 79.45500649643465
+        },
+        {
+            "grid_id": "6528_15388",
+            "complaint_count": 322,
+            "risk_level": "RED",
+            "color": "#FF0000",
+            "center_lat": 29.378005444917747,
+            "center_lon": 79.46999005828694
+        },
+        {
+            "grid_id": "6528_15389",
+            "complaint_count": 14,
+            "risk_level": "YELLOW",
+            "color": "#FFFF00",
+            "center_lat": 29.377904252016748,
+            "center_lon": 79.47022818105948
+        },
+        {
+            "grid_id": "6530_15382",
+            "complaint_count": 108,
+            "risk_level": "RED",
+            "color": "#FF0000",
+            "center_lat": 29.385106840587945,
+            "center_lon": 79.44200675839018
+        },
+        {
+            "grid_id": "6529_15382",
+            "complaint_count": 198,
+            "risk_level": "RED",
+            "color": "#FF0000",
+            "center_lat": 29.38493812424663,
+            "center_lon": 79.44198792558117
+        },
+        {
+            "grid_id": "6530_15389",
+            "complaint_count": 319,
+            "risk_level": "RED",
+            "color": "#FF0000",
+            "center_lat": 29.389008563306664,
+            "center_lon": 79.48000553383032
+        },
+        {
+            "grid_id": "6533_15382",
+            "complaint_count": 98,
+            "risk_level": "RED",
+            "color": "#FF0000",
+            "center_lat": 29.400939550342734,
+            "center_lon": 79.452131626077
+        },
+        {
+            "grid_id": "6526_15389",
+            "complaint_count": 355,
+            "risk_level": "RED",
+            "color": "#FF0000",
+            "center_lat": 29.36999295423049,
+            "center_lon": 79.46500352396319
+        },
+        {
+            "grid_id": "6533_15381",
+            "complaint_count": 228,
+            "risk_level": "RED",
+            "color": "#FF0000",
+            "center_lat": 29.40103800684213,
+            "center_lon": 79.45195268067411
+        },
+        {
+            "grid_id": "6534_15381",
+            "complaint_count": 302,
+            "risk_level": "RED",
+            "color": "#FF0000",
+            "center_lat": 29.405006869667382,
+            "center_lon": 79.45497504200189
+        },
+        {
+            "grid_id": "6530_15385",
+            "complaint_count": 335,
+            "risk_level": "RED",
+            "color": "#FF0000",
+            "center_lat": 29.388002355063232,
+            "center_lon": 79.4579959911795
+        },
+        {
+            "grid_id": "6522_15387",
+            "complaint_count": 334,
+            "risk_level": "RED",
+            "color": "#FF0000",
+            "center_lat": 29.350001169083065,
+            "center_lon": 79.44001150539121
+        },
+        {
+            "grid_id": "6534_15382",
+            "complaint_count": 29,
+            "risk_level": "ORANGE",
+            "color": "#FFA500",
+            "center_lat": 29.404898159899155,
+            "center_lon": 79.45519065638946
+        },
+        {
+            "grid_id": "6525_15386",
+            "complaint_count": 328,
+            "risk_level": "RED",
+            "color": "#FF0000",
+            "center_lat": 29.365000639708075,
+            "center_lon": 79.44500522978291
+        },
+        {
+            "grid_id": "6535_15384",
+            "complaint_count": 346,
+            "risk_level": "RED",
+            "color": "#FF0000",
+            "center_lat": 29.40998852469961,
+            "center_lon": 79.47000317378327
+        },
+        {
+            "grid_id": "6531_15384",
+            "complaint_count": 344,
+            "risk_level": "RED",
+            "color": "#FF0000",
+            "center_lat": 29.392997224585184,
+            "center_lon": 79.45899886827586
+        },
+        {
+            "grid_id": "6527_15393",
+            "complaint_count": 346,
+            "risk_level": "RED",
+            "color": "#FF0000",
+            "center_lat": 29.371992436820978,
+            "center_lon": 79.48800131435138
+        },
+        {
+            "grid_id": "6528_15386",
+            "complaint_count": 310,
+            "risk_level": "RED",
+            "color": "#FF0000",
+            "center_lat": 29.379995832931648,
+            "center_lon": 79.45699984049119
+        },
+        {
+            "grid_id": "6529_15388",
+            "complaint_count": 31,
+            "risk_level": "ORANGE",
+            "color": "#FFA500",
+            "center_lat": 29.38187740132327,
+            "center_lon": 79.46819778999607
+        },
+        {
+            "grid_id": "6532_15382",
+            "complaint_count": 308,
+            "risk_level": "RED",
+            "color": "#FF0000",
+            "center_lat": 29.396995811635993,
+            "center_lon": 79.45099812777717
+        },
+        {
+            "grid_id": "6526_15391",
+            "complaint_count": 359,
+            "risk_level": "RED",
+            "color": "#FF0000",
+            "center_lat": 29.369002696396468,
+            "center_lon": 79.47500365219851
+        },
+        {
+            "grid_id": "6529_15387",
+            "complaint_count": 302,
+            "risk_level": "RED",
+            "color": "#FF0000",
+            "center_lat": 29.382011958854992,
+            "center_lon": 79.46798235785373
         }
     ]
 }
