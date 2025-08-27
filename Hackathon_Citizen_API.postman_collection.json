@@ -1,0 +1,160 @@
+{
+  "info": {
+    "name": "Hackathon Citizen API (OTP + AI + Voice Separate)",
+    "_postman_id": "hackathon-citizen-api-otp-ai-voice-separate",
+    "description": "Flask API with OTP login (Twilio), Complaints, Voice-to-Text complaints, and Text-to-Speech responses.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "Register (Send OTP)",
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Content-Type", "value": "application/json" }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"name\": \"Ravi\",\n  \"phone\": \"9897100920\"\n}"
+        },
+        "url": {
+          "raw": "http://127.0.0.1:5000/register",
+          "protocol": "http",
+          "host": ["127.0.0.1"],
+          "port": "5000",
+          "path": ["register"]
+        }
+      }
+    },
+    {
+      "name": "Login (Verify OTP)",
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Content-Type", "value": "application/json" }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"phone\": \"9897100920\",\n  \"otp\": \"1234\"\n}"
+        },
+        "url": {
+          "raw": "http://127.0.0.1:5000/login",
+          "protocol": "http",
+          "host": ["127.0.0.1"],
+          "port": "5000",
+          "path": ["login"]
+        }
+      }
+    },
+    {
+      "name": "Add Complaint (Typed + Files)",
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Content-Type", "value": "multipart/form-data" }
+        ],
+        "body": {
+          "mode": "formdata",
+          "formdata": [
+            { "key": "user_id", "value": "1", "type": "text" },
+            { "key": "text", "value": "Fire in Sector 7 market", "type": "text" },
+            { "key": "category", "value": "Fire", "type": "text" },
+            { "key": "gps_lat", "value": "29.3910", "type": "text" },
+            { "key": "gps_lon", "value": "79.4610", "type": "text" },
+            { "key": "photo", "type": "file", "src": "" },
+            { "key": "video", "type": "file", "src": "" }
+          ]
+        },
+        "url": {
+          "raw": "http://127.0.0.1:5000/complaints",
+          "protocol": "http",
+          "host": ["127.0.0.1"],
+          "port": "5000",
+          "path": ["complaints"]
+        }
+      },
+      "response": [
+        {
+          "name": "200 OK (Fire complaint auto High priority)",
+          "status": "OK",
+          "code": 200,
+          "body": "{\n  \"message\": \"Complaint added successfully\",\n  \"complaint_id\": 12,\n  \"priority\": \"High\"\n}"
+        }
+      ]
+    },
+    {
+      "name": "Voice Complaint (🎤 Speech-to-Text)",
+      "event": [
+        {
+          "listen": "prerequest",
+          "script": {
+            "exec": [
+              "// This endpoint records from microphone on server side.",
+              "// Cannot directly send voice from Postman.",
+              "// Use for documentation only."
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "url": {
+          "raw": "http://127.0.0.1:5000/complaints/voice",
+          "protocol": "http",
+          "host": ["127.0.0.1"],
+          "port": "5000",
+          "path": ["complaints", "voice"]
+        }
+      }
+    },
+    {
+      "name": "List Complaints",
+      "request": {
+        "method": "GET",
+        "url": {
+          "raw": "http://127.0.0.1:5000/complaints",
+          "protocol": "http",
+          "host": ["127.0.0.1"],
+          "port": "5000",
+          "path": ["complaints"]
+        }
+      }
+    },
+    {
+      "name": "Text-to-Speech (🔊 Generate Audio)",
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Content-Type", "value": "application/json" }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"message\": \"Your complaint has been received successfully and is under process.\"\n}"
+        },
+        "url": {
+          "raw": "http://127.0.0.1:5000/speak",
+          "protocol": "http",
+          "host": ["127.0.0.1"],
+          "port": "5000",
+          "path": ["speak"]
+        }
+      }
+    }
+  ]
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

@@ -1,0 +1,216 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>CityConnect Dashboard</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body class="bg-gray-100">
+
+  <!-- Header -->
+  <header class="bg-blue-700 text-white p-6 shadow">
+    <h1 class="text-3xl font-bold">CityConnect – Government Dashboard</h1>
+    <p class="text-sm text-blue-200">Track & resolve citizen complaints in real time</p>
+  </header>
+
+  <main class="p-6 space-y-8">
+
+    <!-- Metrics -->
+    <section class="grid grid-cols-1 md:grid-cols-3 gap-6">
+      <div class="bg-white p-6 rounded-xl shadow text-center">
+        <p class="text-gray-500">Total Complaints</p>
+        <h2 id="totalComplaints" class="text-3xl font-bold">0</h2>
+      </div>
+      <div class="bg-white p-6 rounded-xl shadow text-center">
+        <p class="text-gray-500">In Progress</p>
+        <h2 id="inProgressComplaints" class="text-3xl font-bold text-yellow-600">0</h2>
+      </div>
+      <div class="bg-white p-6 rounded-xl shadow text-center">
+        <p class="text-gray-500">Resolved</p>
+        <h2 id="resolvedComplaints" class="text-3xl font-bold text-green-600">0</h2>
+      </div>
+    </section>
+
+    <!-- Filters -->
+    <section class="bg-white p-4 rounded-xl shadow flex flex-col md:flex-row gap-4 items-center">
+      <input 
+        type="text" 
+        id="searchInput" 
+        placeholder="🔍 Search by title or location..." 
+        class="w-full md:w-1/2 p-2 border rounded"
+        oninput="renderDashboard()"
+      />
+      <select id="statusFilter" class="p-2 border rounded" onchange="renderDashboard()">
+        <option value="All">All Status</option>
+        <option value="Open">Open</option>
+        <option value="In Progress">In Progress</option>
+        <option value="Resolved">Resolved</option>
+      </select>
+    </section>
+
+    <!-- Charts -->
+    <section class="bg-white p-6 rounded-xl shadow">
+      <h2 class="text-xl font-bold mb-4">Complaints Overview</h2>
+      <p class="text-sm text-gray-500 mb-2">💡 Click on a slice or bar to filter the table below</p>
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <canvas id="pieChart"></canvas>
+        <canvas id="barChart"></canvas>
+      </div>
+    </section>
+
+    <!-- Complaints Table -->
+    <section class="bg-white p-6 rounded-xl shadow">
+      <h2 class="text-xl font-bold mb-4">Complaints List</h2>
+      <div class="overflow-x-auto">
+        <table class="w-full border-collapse">
+          <thead>
+            <tr class="bg-gray-200 text-left">
+              <th class="p-3 border">ID</th>
+              <th class="p-3 border">Title</th>
+              <th class="p-3 border">Description</th>
+              <th class="p-3 border">Location</th>
+              <th class="p-3 border">Before</th>
+              <th class="p-3 border">After</th>
+              <th class="p-3 border">Status</th>
+              <th class="p-3 border">Actions</th>
+            </tr>
+          </thead>
+          <tbody id="complaintsTable"></tbody>
+        </table>
+      </div>
+    </section>
+
+  </main>
+
+  <script>
+    let pieChart, barChart;
+    let chartFilter = "All"; // filter triggered by clicking charts
+
+    function renderDashboard() {
+      let complaints = JSON.parse(localStorage.getItem("complaints")) || [];
+      let table = document.getElementById("complaintsTable");
+      let search = document.getElementById("searchInput").value.toLowerCase();
+      let dropdownFilter = document.getElementById("statusFilter").value;
+
+      // Priority of filter: chart click > dropdown
+      let activeFilter = chartFilter !== "All" ? chartFilter : dropdownFilter;
+
+      table.innerHTML = "";
+
+      let total = complaints.length;
+      let inProgress = complaints.filter(c => c.status === "In Progress").length;
+      let resolved = complaints.filter(c => c.status === "Resolved").length;
+      let open = complaints.filter(c => c.status === "Open").length;
+
+      document.getElementById("totalComplaints").innerText = total;
+      document.getElementById("inProgressComplaints").innerText = inProgress;
+      document.getElementById("resolvedComplaints").innerText = resolved;
+
+      complaints
+        .filter(c => 
+          (activeFilter === "All" || c.status === activeFilter) &&
+          (c.title.toLowerCase().includes(search) || c.location.toLowerCase().includes(search))
+        )
+        .forEach(c => {
+          table.innerHTML += `
+            <tr class="hover:bg-gray-50">
+              <td class="p-3 border">${c.id}</td>
+              <td class="p-3 border font-bold">${c.title}</td>
+              <td class="p-3 border">${c.description}</td>
+              <td class="p-3 border">${c.location}</td>
+              <td class="p-3 border">
+                <img src="${c.beforePhoto}" class="w-20 h-20 object-cover rounded border"/>
+              </td>
+              <td class="p-3 border">
+                ${c.afterPhoto 
+                  ? `<img src="${c.afterPhoto}" class="w-20 h-20 object-cover rounded border"/>`
+                  : `<input type="file" accept="image/*" onchange="uploadAfterPhoto(${c.id}, this)" />`}
+              </td>
+              <td class="p-3 border">
+                <span class="px-2 py-1 text-sm rounded ${
+                  c.status === 'Open' ? 'bg-red-200 text-red-800' :
+                  c.status === 'In Progress' ? 'bg-yellow-200 text-yellow-800' :
+                  'bg-green-200 text-green-800'
+                }">${c.status}</span>
+              </td>
+              <td class="p-3 border space-x-1">
+                <button onclick="updateStatus(${c.id}, 'Open')" class="px-2 py-1 text-xs bg-red-500 text-white rounded">Open</button>
+                <button onclick="updateStatus(${c.id}, 'In Progress')" class="px-2 py-1 text-xs bg-yellow-500 text-white rounded">In Progress</button>
+                <button onclick="updateStatus(${c.id}, 'Resolved')" class="px-2 py-1 text-xs bg-green-600 text-white rounded">Resolved</button>
+              </td>
+            </tr>
+          `;
+        });
+
+      updateCharts(open, inProgress, resolved);
+    }
+
+    function updateStatus(id, newStatus) {
+      let complaints = JSON.parse(localStorage.getItem("complaints")) || [];
+      let c = complaints.find(c => c.id === id);
+      if (c) c.status = newStatus;
+      localStorage.setItem("complaints", JSON.stringify(complaints));
+      renderDashboard();
+    }
+
+    function uploadAfterPhoto(id, input) {
+      const file = input.files[0];
+      const reader = new FileReader();
+      reader.onload = function(event) {
+        let complaints = JSON.parse(localStorage.getItem("complaints")) || [];
+        let c = complaints.find(c => c.id === id);
+        if (c) c.afterPhoto = event.target.result;
+        localStorage.setItem("complaints", JSON.stringify(complaints));
+        renderDashboard();
+      };
+      reader.readAsDataURL(file);
+    }
+
+    function updateCharts(open, inProgress, resolved) {
+      const data = [open, inProgress, resolved];
+      const labels = ["Open", "In Progress", "Resolved"];
+      const colors = ["#f87171", "#facc15", "#4ade80"];
+
+      // Pie Chart
+      if (pieChart) pieChart.destroy();
+      pieChart = new Chart(document.getElementById("pieChart"), {
+        type: "pie",
+        data: { labels, datasets: [{ data, backgroundColor: colors }] },
+        options: {
+          onClick: (evt, activeEls) => {
+            if (activeEls.length > 0) {
+              let idx = activeEls[0].index;
+              chartFilter = labels[idx]; // apply chart filter
+            } else {
+              chartFilter = "All"; // reset
+            }
+            renderDashboard();
+          }
+        }
+      });
+
+      // Bar Chart
+      if (barChart) barChart.destroy();
+      barChart = new Chart(document.getElementById("barChart"), {
+        type: "bar",
+        data: { labels, datasets: [{ label: "Complaints", data, backgroundColor: colors }] },
+        options: {
+          onClick: (evt, activeEls) => {
+            if (activeEls.length > 0) {
+              let idx = activeEls[0].index;
+              chartFilter = labels[idx];
+            } else {
+              chartFilter = "All";
+            }
+            renderDashboard();
+          },
+          scales: { y: { beginAtZero: true } }
+        }
+      });
+    }
+
+    renderDashboard();
+  </script>
+</body>
+</html>

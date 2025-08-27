@@ -1,367 +1,359 @@
 import os
+import random
+import pickle
+import json
+import pandas as pd
 from datetime import datetime, timedelta
 from flask import Flask, request, jsonify, send_from_directory
 from flask_sqlalchemy import SQLAlchemy
-from werkzeug.security import generate_password_hash, check_password_hash
 from werkzeug.utils import secure_filename
-from flask_jwt_extended import JWTManager, create_access_token, jwt_required, get_jwt_identity
-from functools import wraps
-
-# ---------------- CONFIG ----------------
+from flask_cors import CORS     # ✅ Added CORS
+from twilio.rest import Client   # for SMS OTP
+import pyttsx3
+import speech_recognition as sr
+from red_zone_processor import RedZoneDetector# ✅ integrate your Red Zone processor
+   
+# ================================
+# Flask & DB Setup
+# ================================
 app = Flask(__name__)
-BASE_DIR = os.path.abspath(os.path.dirname(__file__))
-DB_PATH = os.path.join(BASE_DIR, "database.db")
-UPLOAD_FOLDER = os.path.join(BASE_DIR, "uploads")
-os.makedirs(UPLOAD_FOLDER, exist_ok=True)
+CORS(app)  # ✅ Enable CORS for all domains
 
-app.config["SQLALCHEMY_DATABASE_URI"] = f"sqlite:///{DB_PATH}"
-app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
-app.config["JWT_SECRET_KEY"] = "super-secret-key"  # change in prod
-app.config["MAX_CONTENT_LENGTH"] = 16 * 1024 * 1024  # 16MB upload limit
+BASE_DIR = os.path.abspath(os.path.dirname(__file__))
+app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///' + os.path.join(BASE_DIR, 'instance', 'hackathon.db')
+app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+
+UPLOAD_FOLDER_PHOTOS = os.path.join(BASE_DIR, 'uploads', 'photos')
+UPLOAD_FOLDER_VIDEOS = os.path.join(BASE_DIR, 'uploads', 'videos')
+UPLOAD_FOLDER_AUDIO = os.path.join(BASE_DIR, 'uploads', 'audio')
+os.makedirs(UPLOAD_FOLDER_PHOTOS, exist_ok=True)
+os.makedirs(UPLOAD_FOLDER_VIDEOS, exist_ok=True)
+os.makedirs(UPLOAD_FOLDER_AUDIO, exist_ok=True)
 
 db = SQLAlchemy(app)
-jwt = JWTManager(app)
 
-# ---------------- UTILITIES ----------------
-def notify_user(email, subject, message):
-    # stub notifications
-    print(f"NOTIFY {email} | {subject} | {message}")
+# ================================
+# Twilio Setup
+# ================================
+TWILIO_SID = os.getenv("TWILIO_SID", "")
+TWILIO_AUTH = os.getenv("TWILIO_AUTH", "")
+TWILIO_PHONE = os.getenv("TWILIO_PHONE", "")
 
-def auth_required(roles=[]):
-    def decorator(fn):
-        @wraps(fn)
-        @jwt_required()
-        def wrapper(*args, **kwargs):
-            identity = get_jwt_identity()
-            user = User.query.get(identity)
-            if not user or (roles and user.role not in roles):
-                return jsonify({"msg": "Unauthorized"}), 403
-            return fn(user, *args, **kwargs)
-        return wrapper
-    return decorator
+twilio_client = None
+if TWILIO_SID and TWILIO_AUTH and TWILIO_PHONE:
+    try:
+        twilio_client = Client(TWILIO_SID, TWILIO_AUTH)
+    except Exception as e:
+        print("⚠️ Twilio init failed:", e)
 
-# ---------------- MODELS ----------------
+
+def send_otp_via_sms(phone, otp):
+    if not twilio_client:
+        print("⚠️ Twilio not configured, returning OTP directly.")
+        return None
+    try:
+        message = twilio_client.messages.create(
+            body=f"Your OTP is {otp}. It is valid for 5 minutes.",
+            from_=TWILIO_PHONE,
+            to=f"+91{phone}"
+        )
+        return message.sid
+    except Exception as e:
+        print("⚠️ SMS sending failed:", e)
+        return None
+
+
+# ================================
+# Models
+# ================================
 class User(db.Model):
     id = db.Column(db.Integer, primary_key=True)
-    username = db.Column(db.String(80), unique=True, nullable=False)
-    password_hash = db.Column(db.String(128), nullable=False)
-    role = db.Column(db.String(20), nullable=False)  # citizen | official | admin
-    fullname = db.Column(db.String(120))
-    email = db.Column(db.String(120))
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
-    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    name = db.Column(db.String(100), nullable=False)
+    phone = db.Column(db.String(15), unique=True, nullable=False)
+    otp = db.Column(db.String(6), nullable=True)
+    otp_expiry = db.Column(db.DateTime, nullable=True)
 
-    def check_password(self, password):
-        return check_password_hash(self.password_hash, password)
 
 class Complaint(db.Model):
     id = db.Column(db.Integer, primary_key=True)
-    title = db.Column(db.String(200), nullable=False)
-    description = db.Column(db.Text, nullable=False)
-    latitude = db.Column(db.Float)
-    longitude = db.Column(db.Float)
-    status = db.Column(db.String(20), default="pending")  # pending | assigned | in_progress | resolved | closed
-    priority = db.Column(db.String(10), default="Low")  # Low | Medium | High
-    ai_category = db.Column(db.String(50))
-    recommended_scheme = db.Column(db.String(200))
-    duplicate_count = db.Column(db.Integer, default=0)
-    reporter_id = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=True)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
-    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
-    resolved_at = db.Column(db.DateTime, nullable=True)
-
-class Assignment(db.Model):
-    id = db.Column(db.Integer, primary_key=True)
-    complaint_id = db.Column(db.Integer, db.ForeignKey("complaint.id"))
-    official_id = db.Column(db.Integer, db.ForeignKey("user.id"))
-    assigned_by = db.Column(db.Integer, db.ForeignKey("user.id"))
-    status = db.Column(db.String(20), default="assigned")  # assigned | accepted | rejected | completed
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
-    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
-
-class Report(db.Model):
-    id = db.Column(db.Integer, primary_key=True)
-    complaint_id = db.Column(db.Integer, db.ForeignKey("complaint.id"))
-    official_id = db.Column(db.Integer, db.ForeignKey("user.id"))
-    note = db.Column(db.Text)
-    file_url = db.Column(db.String(200))
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    text = db.Column(db.String(500), nullable=False)
+    category = db.Column(db.String(50), nullable=True)
+    gps_lat = db.Column(db.Float, nullable=True)
+    gps_lon = db.Column(db.Float, nullable=True)
+    photo = db.Column(db.String(200), nullable=True)
+    video = db.Column(db.String(200), nullable=True)
+    count = db.Column(db.Integer, default=1)
+    priority = db.Column(db.String(10), default="Low")
+    status = db.Column(db.String(20), default="Pending")
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
-class AuditLog(db.Model):
-    id = db.Column(db.Integer, primary_key=True)
-    complaint_id = db.Column(db.Integer, nullable=True)
-    user_id = db.Column(db.Integer, nullable=True)
-    action = db.Column(db.String(100))
-    details = db.Column(db.Text)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
-# ---------------- DB INIT ----------------
 with app.app_context():
     db.create_all()
 
-# ---------------- AUTH ----------------
-@app.route("/auth/register", methods=["POST"])
+
+# ================================
+# Voice Utilities
+# ================================
+def record_voice_to_text():
+    recognizer = sr.Recognizer()
+    mic = sr.Microphone()
+    with mic as source:
+        print("🎤 Please speak your complaint...")
+        recognizer.adjust_for_ambient_noise(source)
+        audio = recognizer.listen(source)
+
+    try:
+        text = recognizer.recognize_google(audio)
+        print("✅ Voice recognized:", text)
+        return text
+    except sr.UnknownValueError:
+        return None
+    except Exception as e:
+        print("⚠️ Voice recognition failed:", e)
+        return None
+
+
+def text_to_speech_file(message, filename):
+    engine = pyttsx3.init()
+    filepath = os.path.join(UPLOAD_FOLDER_AUDIO, filename)
+    engine.save_to_file(message, filepath)
+    engine.runAndWait()
+    return filepath
+
+
+# ================================
+# Red Zone Setup
+# ================================
+RED_ZONE_DATA_PATH = os.path.join(BASE_DIR, "red_zone_map_data.json")
+red_zone_detector = RedZoneDetector()
+
+if os.path.exists(RED_ZONE_DATA_PATH):
+    with open(RED_ZONE_DATA_PATH, "r") as f:
+        red_zone_data = json.load(f)
+else:
+    red_zone_data = {"zones": []}
+
+
+# ================================
+# OTP APIs
+# ================================
+@app.route('/register', methods=['POST'])
 def register():
     data = request.json
-    if not all(k in data for k in ("username","password","role")):
-        return jsonify({"msg":"Missing fields"}), 400
-    if User.query.filter_by(username=data["username"]).first():
-        return jsonify({"msg":"User exists"}), 400
-    user = User(
-        username=data["username"],
-        password_hash=generate_password_hash(data["password"]),
-        role=data["role"],
-        fullname=data.get("fullname"),
-        email=data.get("email")
-    )
-    db.session.add(user)
-    db.session.commit()
-    return jsonify({"msg":"User created"}), 201
+    phone = data.get("phone")
+    name = data.get("name")
 
-@app.route("/auth/login", methods=["POST"])
+    if not phone or not name:
+        return jsonify({"message": "Name and phone number required"}), 400
+
+    user = User.query.filter_by(phone=phone).first()
+    if not user:
+        user = User(phone=phone, name=name)
+        db.session.add(user)
+
+    otp = str(random.randint(1000, 9999))
+    user.otp = otp
+    user.otp_expiry = datetime.utcnow() + timedelta(minutes=5)
+    db.session.commit()
+
+    sms_id = send_otp_via_sms(phone, otp)
+
+    return jsonify({
+        "message": "OTP sent to your mobile number" if sms_id else "OTP generated (Twilio not configured)",
+        "phone": phone,
+        "name": user.name,
+        "otp": "sent_via_sms" if sms_id else otp,
+        "expires_at": user.otp_expiry.isoformat()
+    })
+
+
+@app.route('/login', methods=['POST'])
 def login():
     data = request.json
-    user = User.query.filter_by(username=data.get("username")).first()
-    if not user or not user.check_password(data.get("password")):
-        return jsonify({"msg":"Bad username or password"}), 401
-    token = create_access_token(identity=user.id, expires_delta=timedelta(hours=8))
-    return jsonify({"access_token": token, "role": user.role}), 200
+    phone = data.get("phone")
+    otp = data.get("otp")
 
-# ---------------- COMPLAINTS ----------------
-@app.route("/api/complaints", methods=["POST"])
-@jwt_required(optional=True)
-def create_complaint():
-    data = request.json
-    if not data.get("title") or not data.get("description"):
-        return jsonify({"msg":"Title and description required"}), 400
-    reporter_id = get_jwt_identity()
-    complaint = Complaint(
-        title=data["title"],
-        description=data["description"],
-        latitude=data.get("latitude"),
-        longitude=data.get("longitude"),
-        reporter_id=reporter_id
+    user = User.query.filter_by(phone=phone).first()
+    if not user:
+        return jsonify({"message": "User not found"}), 404
+    if user.otp != otp:
+        return jsonify({"message": "Invalid OTP"}), 401
+    if datetime.utcnow() > user.otp_expiry:
+        return jsonify({"message": "OTP expired"}), 401
+
+    user.otp = None
+    user.otp_expiry = None
+    db.session.commit()
+
+    return jsonify({
+        "message": "Login successful",
+        "name": user.name,
+        "phone": phone,
+        "user_id": user.id
+    })
+
+
+# ================================
+# Complaint APIs
+# ================================
+@app.route('/complaints', methods=['POST'])
+def add_complaint():
+    data = request.form
+    user_id = data.get("user_id")
+    text = data.get("text", "")
+    category = data.get("category", "")
+    gps_lat = float(data.get("gps_lat", 0))
+    gps_lon = float(data.get("gps_lon", 0))
+
+    user = User.query.filter_by(id=user_id).first()
+    if not user:
+        return jsonify({"message": "User not found"}), 404
+
+    photo_file = request.files.get("photo")
+    video_file = request.files.get("video")
+
+    photo_filename = None
+    video_filename = None
+    if photo_file:
+        photo_filename = secure_filename(photo_file.filename)
+        photo_file.save(os.path.join(UPLOAD_FOLDER_PHOTOS, photo_filename))
+    if video_file:
+        video_filename = secure_filename(video_file.filename)
+        video_file.save(os.path.join(UPLOAD_FOLDER_VIDEOS, video_filename))
+
+    priority = "Low"
+    if "fire" in text.lower() or category.lower() == "fire":
+        priority = "High"
+
+    new_complaint = Complaint(
+        user_id=user.id,
+        text=text,
+        category=category,
+        gps_lat=gps_lat,
+        gps_lon=gps_lon,
+        photo=photo_filename,
+        video=video_filename,
+        priority=priority
     )
-    db.session.add(complaint)
+    db.session.add(new_complaint)
     db.session.commit()
-    db.session.add(AuditLog(
-        complaint_id=complaint.id,
-        user_id=reporter_id,
-        action="Complaint Created",
-        details=f"Complaint '{complaint.title}' created"
-    ))
-    db.session.commit()
-    return jsonify({"msg":"Complaint created","complaint_id":complaint.id}), 201
 
-@app.route("/api/complaints", methods=["GET"])
-@jwt_required(optional=True)
+    df_new = pd.DataFrame([{"latitude": gps_lat, "longitude": gps_lon}])
+    red_zone_detector.assign_complaints_to_grids(df_new)
+    updated_map = red_zone_detector.get_map_data()
+
+    with open(RED_ZONE_DATA_PATH, "w") as f:
+        json.dump(updated_map, f, indent=4)
+
+    return jsonify({
+        "message": "Complaint added successfully",
+        "complaint_id": new_complaint.id,
+        "priority": new_complaint.priority,
+        "red_zone_update": updated_map
+    })
+
+
+@app.route('/complaints', methods=['GET'])
 def list_complaints():
-    complaints = Complaint.query.all()
-    output = []
-    for c in complaints:
-        output.append({
+    comps = Complaint.query.order_by(Complaint.created_at.desc()).all()
+    results = []
+    for c in comps:
+        results.append({
             "id": c.id,
-            "title": c.title,
-            "description": c.description,
-            "status": c.status,
+            "text": c.text,
+            "category": c.category,
+            "gps": [c.gps_lat, c.gps_lon],
+            "photo": f"/uploads/photos/{c.photo}" if c.photo else None,
+            "video": f"/uploads/videos/{c.video}" if c.video else None,
             "priority": c.priority,
-            "resolved_at": c.resolved_at
+            "count": c.count,
+            "status": c.status,
+            "created_at": c.created_at.isoformat()
         })
-    return jsonify(output)
+    return jsonify(results)
 
-@app.route("/api/complaints/<int:cid>", methods=["GET"])
-@jwt_required(optional=True)
-def get_complaint(cid):
-    c = Complaint.query.get_or_404(cid)
+
+# ================================
+# Apply Scheme API
+# ================================
+@app.route('/apply_scheme', methods=['POST'])
+def apply_scheme():
+    data = request.get_json()
+    user_id = data.get("user_id")
+    scheme = data.get("scheme")
+
+    if not user_id or not scheme:
+        return jsonify({"message": "user_id and scheme required"}), 400
+
+    user = User.query.filter_by(id=user_id).first()
+    if not user:
+        return jsonify({"message": "User not found"}), 404
+
+    return jsonify({"message": f"User {user.name} applied for {scheme} successfully!"})
+
+
+# ================================
+# Red Zone API
+# ================================
+@app.route('/red_zones', methods=['GET'])
+def get_red_zones():
+    if os.path.exists(RED_ZONE_DATA_PATH):
+        with open(RED_ZONE_DATA_PATH, "r") as f:
+            return jsonify(json.load(f))
+    return jsonify({"zones": []})
+
+
+# ================================
+# Text-to-Speech API
+# ================================
+@app.route('/speak', methods=['POST'])
+def speak():
+    data = request.json
+    message = data.get("message", "")
+    if not message:
+        return jsonify({"message": "No text provided"}), 400
+
+    filename = f"speak_{datetime.utcnow().strftime('%Y%m%d%H%M%S')}.wav"
+    filepath = text_to_speech_file(message, filename)
+
     return jsonify({
-        "id": c.id,
-        "title": c.title,
-        "description": c.description,
-        "status": c.status,
-        "priority": c.priority,
-        "resolved_at": c.resolved_at
+        "message": "Audio generated",
+        "file": f"/uploads/audio/{filename}"
     })
 
-@app.route("/api/complaints/<int:cid>", methods=["PATCH"])
-@auth_required(roles=["admin","official","citizen"])
-def update_complaint(current_user, cid):
-    c = Complaint.query.get_or_404(cid)
-    data = request.json
-    changes = []
-    if "status" in data and current_user.role in ["admin","official"]:
-        changes.append(f"Status: {c.status} -> {data['status']}")
-        c.status = data["status"]
-    if "priority" in data and current_user.role == "admin":
-        changes.append(f"Priority: {c.priority} -> {data['priority']}")
-        c.priority = data["priority"]
-    if "title" in data:
-        changes.append(f"Title changed")
-        c.title = data["title"]
-    if "description" in data:
-        changes.append(f"Description changed")
-        c.description = data["description"]
-    db.session.add(AuditLog(
-        complaint_id=c.id,
-        user_id=current_user.id,
-        action="Complaint Updated",
-        details=", ".join(changes) if changes else "Updated fields"
-    ))
-    db.session.commit()
-    return jsonify({"msg":"Updated"}), 200
 
-@app.route("/api/complaints/<int:cid>", methods=["DELETE"])
-@auth_required(roles=["admin"])
-def delete_complaint(current_user, cid):
-    c = Complaint.query.get_or_404(cid)
-    db.session.delete(c)
-    db.session.add(AuditLog(
-        complaint_id=cid,
-        user_id=current_user.id,
-        action="Complaint Deleted",
-        details=f"Complaint deleted"
-    ))
-    db.session.commit()
-    return jsonify({"msg":"Deleted"}), 200
+# ================================
+# Static file serving
+# ================================
+@app.route('/uploads/photos/<filename>')
+def get_photo(filename):
+    return send_from_directory(UPLOAD_FOLDER_PHOTOS, filename)
 
-# ---------------- ASSIGNMENTS ----------------
-@app.route("/api/complaints/<int:cid>/assign", methods=["POST"])
-@auth_required(roles=["admin"])
-def assign_complaint(current_user, cid):
-    data = request.json
-    official = User.query.get_or_404(data.get("official_id"))
-    if official.role != "official":
-        return jsonify({"msg":"Cannot assign to non-official"}), 400
-    assignment = Assignment(
-        complaint_id=cid,
-        official_id=official.id,
-        assigned_by=current_user.id
-    )
-    db.session.add(assignment)
-    db.session.add(AuditLog(
-        complaint_id=cid,
-        user_id=current_user.id,
-        action="Complaint Assigned",
-        details=f"Assigned to {official.username}"
-    ))
-    db.session.commit()
-    notify_user(official.email, "New Assignment", f"You have been assigned complaint {cid}")
-    return jsonify({"msg":"Assigned","assignment_id":assignment.id}), 200
 
-@app.route("/api/assignments", methods=["GET"])
-@auth_required(roles=["official"])
-def list_assignments(current_user):
-    assignments = Assignment.query.filter_by(official_id=current_user.id).all()
-    output = []
-    for a in assignments:
-        output.append({
-            "id": a.id,
-            "complaint_id": a.complaint_id,
-            "status": a.status
-        })
-    return jsonify(output)
+@app.route('/uploads/videos/<filename>')
+def get_video(filename):
+    return send_from_directory(UPLOAD_FOLDER_VIDEOS, filename)
 
-@app.route("/api/assignments/<int:aid>/accept", methods=["POST"])
-@auth_required(roles=["official"])
-def accept_assignment(current_user, aid):
-    a = Assignment.query.get_or_404(aid)
-    if a.official_id != current_user.id:
-        return jsonify({"msg":"Unauthorized"}), 403
-    a.status = "accepted"
-    db.session.add(AuditLog(
-        complaint_id=a.complaint_id,
-        user_id=current_user.id,
-        action="Assignment Accepted",
-        details=f"Assignment {aid} accepted"
-    ))
-    db.session.commit()
-    return jsonify({"msg":"Accepted"}), 200
 
-@app.route("/api/assignments/<int:aid>/report", methods=["POST"])
-@auth_required(roles=["official"])
-def submit_report(current_user, aid):
-    a = Assignment.query.get_or_404(aid)
-    if a.official_id != current_user.id:
-        return jsonify({"msg":"Unauthorized"}), 403
-    note = request.form.get("note")
-    file = request.files.get("file")
-    if not note and not file:
-        return jsonify({"msg":"Provide note or file"}), 400
-    filename = None
-    if file:
-        safe_name = secure_filename(file.filename)
-        filename = f"report_{aid}_{safe_name}"
-        filepath = os.path.join(UPLOAD_FOLDER, filename)
-        file.save(filepath)
-    report = Report(
-        complaint_id=a.complaint_id,
-        official_id=current_user.id,
-        note=note,
-        file_url=filename
-    )
-    a.status = "completed"
-    complaint = Complaint.query.get(a.complaint_id)
-    complaint.status = "resolved"
-    complaint.resolved_at = datetime.utcnow()
-    db.session.add(report)
-    db.session.add(AuditLog(
-        complaint_id=a.complaint_id,
-        user_id=current_user.id,
-        action="Report Submitted",
-        details=f"Report submitted for assignment {aid}"
-    ))
-    db.session.commit()
-    # notify reporter/admin
-    reporter = User.query.get(complaint.reporter_id)
-    if reporter: notify_user(reporter.email, "Complaint Resolved", f"Complaint {complaint.id} resolved")
-    return jsonify({"msg":"Report submitted"}), 200
+@app.route('/uploads/audio/<filename>')
+def get_audio(filename):
+    return send_from_directory(UPLOAD_FOLDER_AUDIO, filename)
 
-@app.route("/api/complaints/<int:cid>/reports", methods=["GET"])
-@jwt_required()
-def list_reports(cid):
-    reports = Report.query.filter_by(complaint_id=cid).all()
-    output = []
-    for r in reports:
-        output.append({
-            "id": r.id,
-            "official_id": r.official_id,
-            "note": r.note,
-            "file_url": r.file_url,
-            "created_at": r.created_at
-        })
-    return jsonify(output)
 
-@app.route("/api/audit/complaint/<int:cid>", methods=["GET"])
-@jwt_required()
-def get_audit(cid):
-    logs = AuditLog.query.filter_by(complaint_id=cid).all()
-    output = []
-    for l in logs:
-        output.append({
-            "id": l.id,
-            "user_id": l.user_id,
-            "action": l.action,
-            "details": l.details,
-            "created_at": l.created_at
-        })
-    return jsonify(output)
-
-# ---------------- STATIC FILES ----------------
-@app.route("/uploads/<filename>")
-def uploaded_file(filename):
-    return send_from_directory(UPLOAD_FOLDER, filename)
-
-# ---------------- GOVT ENDPOINTS (stub) ----------------
-@app.route("/govt/analytics", methods=["GET"])
-def govt_analytics():
-    total = Complaint.query.count()
-    resolved = Complaint.query.filter_by(status="resolved").count()
-    pending = Complaint.query.filter_by(status="pending").count()
-    return jsonify({
-        "total_complaints": total,
-        "resolved": resolved,
-        "pending": pending
-    })
-
-# ---------------- RUN ----------------
-if __name__ == "__main__":
+# ================================
+# Run Flask
+# ================================
+if __name__ == '__main__':
     app.run(debug=True)
+
+
+
+
+
+
+
+
+
+

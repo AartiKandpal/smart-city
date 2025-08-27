@@ -1,0 +1,12 @@
+{
+    "zones": [
+        {
+            "grid_id": "6531_15385",
+            "complaint_count": 1,
+            "risk_level": "GREEN",
+            "color": "#00FF00",
+            "center_lat": 29.391,
+            "center_lon": 79.461
+        }
+    ]
+}
