@@ -1,0 +1,137 @@
+<html>
+  <head>
+    <link rel="preconnect" href="https://fonts.gstatic.com/" crossorigin="" />
+    <link
+      rel="stylesheet"
+      as="style"
+      onload="this.rel='stylesheet'"
+      href="https://fonts.googleapis.com/css2?display=swap&amp;family=Noto+Sans%3Awght%40400%3B500%3B700%3B900&amp;family=Public+Sans%3Awght%40400%3B500%3B700%3B900"
+    />
+
+    <title>Jan Setu - OTP Login</title>
+    <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+  </head>
+  <body class="bg-[#f8fafc]" style='font-family: "Public Sans", "Noto Sans", sans-serif;'>
+    <div class="flex min-h-screen items-center justify-center px-4">
+      
+      <!-- Card -->
+      <div class="bg-white shadow-xl rounded-2xl p-8 w-full max-w-[420px]">
+        
+        <h2 class="text-[#111418] text-[28px] font-bold leading-tight text-center pb-3">Welcome to Jan setu</h2>
+        <p class="text-[#111418] text-base font-normal text-center pb-6">Login using your phone number and OTP</p>
+        
+        <!-- Phone Number -->
+        <div class="flex flex-col gap-4">
+          <input
+            placeholder="Phone Number"
+            class="form-input w-full rounded-lg text-[#111418] focus:outline-none focus:ring-2 focus:ring-[#1773cf] border border-gray-200 bg-[#f0f2f4] h-14 placeholder:text-[#637588] p-4 text-base"
+          />
+        </div>
+
+        <!-- Get OTP button -->
+        <div class="pt-4">
+          <button
+            id="getOtpBtn"
+            class="w-full h-12 bg-[#1773cf] hover:bg-[#0f5cab] transition-colors duration-200 text-white font-bold rounded-lg shadow-md"
+          >
+            Get OTP
+          </button>
+        </div>
+
+        <!-- OTP 6-digit inputs -->
+        <div class="flex justify-center gap-2 pt-6">
+          <input maxlength="1" class="otp-box" />
+          <input maxlength="1" class="otp-box" />
+          <input maxlength="1" class="otp-box" />
+          <input maxlength="1" class="otp-box" />
+          <input maxlength="1" class="otp-box" />
+          <input maxlength="1" class="otp-box" />
+        </div>
+
+        <!-- Resend OTP link -->
+        <div class="pt-4 text-center">
+          <button id="resendOtpBtn" class="text-[#1773cf] font-medium hover:underline">
+            Resend OTP
+          </button>
+          <span id="countdownText" class="text-[#637588] text-sm ml-2"></span>
+        </div>
+
+        <!-- Login button -->
+        <div class="pt-6">
+          <button
+            id="loginBtn"
+            class="w-full h-12 bg-[#1773cf] hover:bg-[#0f5cab] transition-colors duration-200 text-white font-bold rounded-lg shadow-md"
+          >
+            Login
+          </button>
+        </div>
+
+        <!-- Terms -->
+        <p class="text-[#637588] text-sm font-normal leading-normal pt-6 text-center">
+          By continuing, you agree to our <a href="#" class="text-[#1773cf] hover:underline">Terms of Service</a> and <a href="#" class="text-[#1773cf] hover:underline">Privacy Policy</a>.
+        </p>
+      
+      </div>
+      <!-- End Card -->
+
+    </div>
+
+    <!-- Small JS -->
+    <script>
+      // OTP boxes auto move
+      const inputs = document.querySelectorAll(".otp-box");
+      inputs.forEach((input, index) => {
+        input.classList.add("w-12","h-14","text-center","text-xl","border","border-gray-300","rounded-lg","focus:ring-2","focus:ring-[#1773cf]");
+        input.addEventListener("input", () => {
+          if (input.value && index < inputs.length - 1) {
+            inputs[index + 1].focus();
+          }
+        });
+        input.addEventListener("keydown", (e) => {
+          if (e.key === "Backspace" && !input.value && index > 0) {
+            inputs[index - 1].focus();
+          }
+        });
+      });
+
+      // Resend OTP countdown
+      const resendOtpBtn = document.getElementById("resendOtpBtn");
+      const countdownText = document.getElementById("countdownText");
+      let timer;
+
+      function startCountdown() {
+        let countdown = 60;
+        resendOtpBtn.disabled = true;
+        resendOtpBtn.classList.add("opacity-50", "cursor-not-allowed");
+        countdownText.innerText = `(${countdown}s)`;
+
+        timer = setInterval(() => {
+          countdown--;
+          if (countdown > 0) {
+            countdownText.innerText = `(${countdown}s)`;
+          } else {
+            clearInterval(timer);
+            resendOtpBtn.disabled = false;
+            resendOtpBtn.classList.remove("opacity-50", "cursor-not-allowed");
+            countdownText.innerText = "";
+          }
+        }, 1000);
+      }
+
+      // Click handlers
+      document.getElementById("getOtpBtn").addEventListener("click", startCountdown);
+      resendOtpBtn.addEventListener("click", startCountdown);
+
+      // ✅ Login button check
+      document.getElementById("loginBtn").addEventListener("click", () => {
+        const enteredOtp = Array.from(inputs).map(i => i.value).join("");
+        if (enteredOtp === "111111") {
+          alert("✅ Login successful!");
+          window.location.href = "4th.html"; // redirect to your page
+        } else {
+          alert("❌ Invalid OTP, please try again.");
+        }
+      });
+    </script>
+  </body>
+</html>

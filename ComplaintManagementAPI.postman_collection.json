@@ -1,0 +1,166 @@
+{
+  "info": {
+    "name": "ComplaintManagementAPI",
+    "_postman_id": "a1b2c3d4-5678-9101-1121-314151617181",
+    "description": "Full API flow for complaint management system",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "Register Admin",
+      "request": {
+        "method": "POST",
+        "header": [],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"username\": \"admin\",\n  \"password\": \"admin123\",\n  \"role\": \"admin\"\n}",
+          "options": { "raw": { "language": "json" } }
+        },
+        "url": { "raw": "http://127.0.0.1:5000/auth/register", "protocol": "http", "host": ["127.0.0.1"], "port": "5000", "path": ["auth","register"] }
+      },
+      "response": []
+    },
+    {
+      "name": "Register Official",
+      "request": {
+        "method": "POST",
+        "header": [],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"username\": \"official1\",\n  \"password\": \"off123\",\n  \"role\": \"official\"\n}",
+          "options": { "raw": { "language": "json" } }
+        },
+        "url": { "raw": "http://127.0.0.1:5000/auth/register", "protocol": "http", "host": ["127.0.0.1"], "port": "5000", "path": ["auth","register"] }
+      },
+      "response": []
+    },
+    {
+      "name": "Register Citizen",
+      "request": {
+        "method": "POST",
+        "header": [],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"username\": \"citizen1\",\n  \"password\": \"cit123\",\n  \"role\": \"citizen\"\n}",
+          "options": { "raw": { "language": "json" } }
+        },
+        "url": { "raw": "http://127.0.0.1:5000/auth/register", "protocol": "http", "host": ["127.0.0.1"], "port": "5000", "path": ["auth","register"] }
+      },
+      "response": []
+    },
+    {
+      "name": "Login Admin",
+      "request": {
+        "method": "POST",
+        "header": [],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"username\": \"admin\",\n  \"password\": \"admin123\"\n}",
+          "options": { "raw": { "language": "json" } }
+        },
+        "url": { "raw": "http://127.0.0.1:5000/auth/login", "protocol": "http", "host": ["127.0.0.1"], "port": "5000", "path": ["auth","login"] }
+      },
+      "response": []
+    },
+    {
+      "name": "Login Official",
+      "request": {
+        "method": "POST",
+        "header": [],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"username\": \"official1\",\n  \"password\": \"off123\"\n}",
+          "options": { "raw": { "language": "json" } }
+        },
+        "url": { "raw": "http://127.0.0.1:5000/auth/login", "protocol": "http", "host": ["127.0.0.1"], "port": "5000", "path": ["auth","login"] }
+      },
+      "response": []
+    },
+    {
+      "name": "Login Citizen",
+      "request": {
+        "method": "POST",
+        "header": [],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"username\": \"citizen1\",\n  \"password\": \"cit123\"\n}",
+          "options": { "raw": { "language": "json" } }
+        },
+        "url": { "raw": "http://127.0.0.1:5000/auth/login", "protocol": "http", "host": ["127.0.0.1"], "port": "5000", "path": ["auth","login"] }
+      },
+      "response": []
+    },
+    {
+      "name": "Create Complaint",
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Authorization", "value": "Bearer {{citizen_token}}", "type": "text" }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"title\": \"Pothole on Main Street\",\n  \"description\": \"Huge pothole causing accidents\"\n}",
+          "options": { "raw": { "language": "json" } }
+        },
+        "url": { "raw": "http://127.0.0.1:5000/api/complaints", "protocol": "http", "host": ["127.0.0.1"], "port": "5000", "path": ["api","complaints"] }
+      },
+      "response": []
+    },
+    {
+      "name": "Assign Complaint",
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Authorization", "value": "Bearer {{admin_token}}", "type": "text" }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"official_id\": 2\n}",
+          "options": { "raw": { "language": "json" } }
+        },
+        "url": { "raw": "http://127.0.0.1:5000/api/complaints/1/assign", "protocol": "http", "host": ["127.0.0.1"], "port": "5000", "path": ["api","complaints","1","assign"] }
+      },
+      "response": []
+    },
+    {
+      "name": "Accept Assignment",
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Authorization", "value": "Bearer {{official_token}}", "type": "text" }
+        ],
+        "url": { "raw": "http://127.0.0.1:5000/api/assignments/1/accept", "protocol": "http", "host": ["127.0.0.1"], "port": "5000", "path": ["api","assignments","1","accept"] }
+      },
+      "response": []
+    },
+    {
+      "name": "Submit Report",
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Authorization", "value": "Bearer {{official_token}}", "type": "text" }
+        ],
+        "body": {
+          "mode": "formdata",
+          "formdata": [
+            { "key": "file", "type": "file", "src": "" },
+            { "key": "note", "value": "Fixed pothole, asphalt applied", "type": "text" }
+          ]
+        },
+        "url": { "raw": "http://127.0.0.1:5000/api/assignments/1/report", "protocol": "http", "host": ["127.0.0.1"], "port": "5000", "path": ["api","assignments","1","report"] }
+      },
+      "response": []
+    },
+    {
+      "name": "Get Complaints",
+      "request": {
+        "method": "GET",
+        "header": [
+          { "key": "Authorization", "value": "Bearer {{admin_token}}", "type": "text" }
+        ],
+        "url": { "raw": "http://127.0.0.1:5000/api/complaints", "protocol": "http", "host": ["127.0.0.1"], "port": "5000", "path": ["api","complaints"] }
+      },
+      "response": []
+    }
+  ]
+}

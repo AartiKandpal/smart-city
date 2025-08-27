@@ -1,0 +1,243 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Citizen Portal</title>
+  <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+
+  <!-- Leaflet CSS & JS -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css"/>
+  <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet-control-geocoder/dist/Control.Geocoder.css"/>
+  <script src="https://unpkg.com/leaflet-control-geocoder/dist/Control.Geocoder.js"></script>
+
+  <style>
+    #map { width: 100%; height: 250px; border-radius: 0.5rem; }
+    .media-preview img, .media-preview video { max-width: 100px; max-height: 100px; margin-right: 10px; border-radius: 0.25rem; }
+    .status-pending { border-color: #f59e0b; }
+    .status-inprogress { border-color: #3b82f6; }
+    .status-resolved { border-color: #10b981; }
+  </style>
+</head>
+<body class="bg-gray-50 font-sans min-h-screen flex flex-col">
+
+<header class="bg-white shadow px-6 py-4 flex justify-between items-center">
+  <h1 class="text-xl font-bold text-gray-800">Citizen Portal</h1>
+  <nav class="flex gap-6 items-center">
+    <a href="complaintracking.html" class="text-gray-700 hover:text-blue-600 font-medium">Complaints Tracking</a>
+    <a href="schemes.html" class="text-gray-700 hover:text-blue-600 font-medium">Government Schemes</a>
+    <a href="#profileSection" class="text-gray-700 hover:text-blue-600 font-medium">Profile</a>
+    <div class="bg-center bg-no-repeat aspect-square bg-cover rounded-full w-10 shrink-0"
+      style='background-image: url("https://www.bing.com/th?id=OIP.Sf3qZJ7lzYpG8Q0L2qV8swHaHa&pid=Api&rs=1");'></div>
+  </nav>
+</header>
+
+<main class="flex-1 p-6 flex flex-col gap-6">
+
+  <!-- Complaint Form -->
+  <div id="dashboardSection" class="bg-white shadow-xl rounded-2xl p-8 w-full max-w-[600px] mx-auto">
+    <h2 class="text-2xl font-bold text-center text-gray-800 mb-2">Submit a Complaint</h2>
+    <p class="text-gray-500 text-center mb-6">Report issues in your community to help us improve our city.</p>
+
+    <!-- Category -->
+    <div class="mb-4">
+      <label class="font-medium text-gray-800">Complaint Category</label>
+      <select id="category" class="form-input w-full h-12 rounded-lg border border-gray-300 bg-white mt-2 px-4 text-gray-800">
+        <option value="">Select a category</option>
+        <option value="roads">Roads</option>
+        <option value="electricity">Electricity</option>
+        <option value="water">Water</option>
+        <option value="sanitation">Sanitation</option>
+        <option value="other">Other</option>
+      </select>
+    </div>
+
+    <!-- Description -->
+    <div class="mb-4">
+      <label class="font-medium text-gray-800">Description</label>
+      <textarea id="description" placeholder="Describe the issue in detail" class="form-input w-full h-36 rounded-lg border border-gray-300 bg-white px-4 py-3 mt-2 text-gray-800"></textarea>
+    </div>
+
+    <!-- Location + Map -->
+    <div class="mb-6">
+      <label class="font-medium text-gray-800">Location (Required)</label>
+      <input id="locationInput" placeholder="Search or move the marker" class="form-input w-full h-12 rounded-lg border border-gray-300 bg-white mt-2 px-4 text-gray-800"/>
+      <div id="map" class="mt-4"></div>
+    </div>
+
+    <!-- Media Upload -->
+    <div class="mb-6">
+      <label class="font-medium text-gray-800">Upload Media (Optional)</label>
+      <input id="mediaFiles" type="file" multiple accept="image/*,video/*" class="form-input w-full mt-2"/>
+      <div id="mediaPreview" class="media-preview flex flex-wrap mt-2"></div>
+    </div>
+
+    <!-- Submit Button -->
+    <div class="flex justify-end mb-6">
+      <button id="submitComplaint" class="w-full max-w-[200px] h-12 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-lg transition-transform transform duration-150 ease-out shadow-md active:scale-95 active:shadow-inner">Submit Complaint</button>
+    </div>
+  </div>
+
+  <!-- Dashboard -->
+  <div class="max-w-3xl mx-auto">
+    <h2 class="text-xl font-bold mb-3 text-gray-800">My Dashboard</h2>
+    <div id="dashboard" class="flex flex-col gap-3">
+      <p class="text-gray-500">No complaints submitted yet.</p>
+    </div>
+  </div>
+
+  <!-- Government Schemes Section -->
+  <div id="schemesSection" class="bg-white shadow-xl rounded-2xl p-8 max-w-3xl mx-auto mt-6">
+    <h2 class="text-2xl font-bold text-gray-800 mb-3">Government Schemes</h2>
+    <ul class="list-disc list-inside text-gray-700">
+      <li>Scheme 1: Benefits for citizens</li>
+      <li>Scheme 2: Free healthcare program</li>
+      <li>Scheme 3: Road improvement initiative</li>
+      <li>Scheme 4: Subsidized electricity program</li>
+    </ul>
+  </div>
+
+</main>
+
+<script>
+  // Initialize map
+  const map = L.map('map').setView([28.6139, 77.209], 12);
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19 }).addTo(map);
+  const marker = L.marker([28.6139, 77.209], { draggable: true }).addTo(map);
+
+  // Update location field when marker moves
+  function updateLocationField(latlng) {
+    document.getElementById('locationInput').value = latlng.lat.toFixed(6) + ', ' + latlng.lng.toFixed(6);
+  }
+  marker.on('dragend', () => updateLocationField(marker.getLatLng()));
+
+  // Try GPS
+  if (navigator.geolocation) {
+    navigator.geolocation.getCurrentPosition(position => {
+      const userLocation = [position.coords.latitude, position.coords.longitude];
+      map.setView(userLocation, 14);
+      marker.setLatLng(userLocation);
+      updateLocationField(marker.getLatLng());
+    });
+  }
+
+  // Geocoder
+  const geocoder = L.Control.geocoder({ defaultMarkGeocode: false })
+    .on('markgeocode', e => {
+      const center = e.geocode.center;
+      marker.setLatLng(center);
+      map.setView(center, 16);
+      updateLocationField(center);
+    }).addTo(map);
+
+  // Manual location search
+  document.getElementById('locationInput').addEventListener('change', async () => {
+    const query = document.getElementById('locationInput').value;
+    if (!query) return;
+    const response = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}`);
+    const results = await response.json();
+    if (results.length > 0) {
+      const lat = parseFloat(results[0].lat);
+      const lon = parseFloat(results[0].lon);
+      marker.setLatLng([lat, lon]);
+      map.setView([lat, lon], 16);
+      updateLocationField({lat, lng: lon});
+    } else alert("Location not found!");
+  });
+
+  // Media preview
+  const mediaFilesInput = document.getElementById('mediaFiles');
+  const mediaPreview = document.getElementById('mediaPreview');
+  let mediaFiles = [];
+
+  mediaFilesInput.addEventListener('change', () => {
+    mediaPreview.innerHTML = '';
+    mediaFiles = Array.from(mediaFilesInput.files);
+    mediaFiles.forEach(file => {
+      const reader = new FileReader();
+      reader.onload = function(e) {
+        let element;
+        if (file.type.startsWith('image/')) element = document.createElement('img');
+        else if (file.type.startsWith('video/')) { element = document.createElement('video'); element.controls = true; }
+        element.src = e.target.result;
+        file.src = e.target.result; // save base64 for later
+        mediaPreview.appendChild(element);
+      };
+      reader.readAsDataURL(file);
+    });
+  });
+
+  // Dashboard with localStorage
+  const dashboard = document.getElementById('dashboard');
+  let complaints = JSON.parse(localStorage.getItem('complaints')) || [];
+
+  function renderComplaints() {
+    dashboard.innerHTML = '';
+    if (complaints.length === 0) {
+      dashboard.innerHTML = '<p class="text-gray-500">No complaints submitted yet.</p>';
+      return;
+    }
+    complaints.slice().reverse().forEach((c, idx) => {
+      const complaintCard = document.createElement('div');
+      complaintCard.className = `border rounded-lg p-4 bg-gray-50 shadow-sm ${
+        c.status==='Pending'?'status-pending': c.status==='In Progress'?'status-inprogress':'status-resolved'
+      }`;
+      let mediaHtml = '';
+      c.media.forEach(file => {
+        if(file.type.startsWith('image/')) mediaHtml += `<img src="${file.data}" />`;
+        else if(file.type.startsWith('video/')) mediaHtml += `<video src="${file.data}" controls></video>`;
+      });
+      complaintCard.innerHTML = `
+        <p><strong>Category:</strong> ${c.category}</p>
+        <p><strong>Description:</strong> ${c.description}</p>
+        <p><strong>Location:</strong> ${c.location}</p>
+        <div class="flex flex-wrap gap-2 mt-2">${mediaHtml}</div>
+        <div class="mt-2">
+          <label class="font-medium">Status:</label>
+          <select class="status-dropdown border rounded px-2 py-1 ml-2">
+            <option value="Pending" ${c.status==='Pending'?'selected':''}>Pending</option>
+            <option value="In Progress" ${c.status==='In Progress'?'selected':''}>In Progress</option>
+            <option value="Resolved" ${c.status==='Resolved'?'selected':''}>Resolved</option>
+          </select>
+        </div>
+      `;
+      complaintCard.querySelector('.status-dropdown').addEventListener('change', function(){
+        complaints[complaints.length-1-idx].status = this.value;
+        localStorage.setItem('complaints', JSON.stringify(complaints));
+        renderComplaints();
+      });
+      dashboard.appendChild(complaintCard);
+    });
+  }
+
+  renderComplaints();
+
+  // Submit complaint
+  document.getElementById('submitComplaint').addEventListener('click', () => {
+    const category = document.getElementById('category').value.trim();
+    const description = document.getElementById('description').value.trim();
+    const location = document.getElementById('locationInput').value.trim();
+
+    // ✅ Validation
+    if (!category) { alert("Please select a category."); return; }
+    if (!description) { alert("Please enter a description."); return; }
+    if (!location) { alert("Please set a location using the map."); return; }
+
+    const mediaData = mediaFiles.map(f=>({type:f.type, data:f.src||''}));
+    complaints.push({category, description, location, media:mediaData, status:'Pending'});
+    localStorage.setItem('complaints', JSON.stringify(complaints));
+    renderComplaints();
+
+    // Reset form
+    document.getElementById('category').value = '';
+    document.getElementById('description').value = '';
+    document.getElementById('locationInput').value = '';
+    mediaFilesInput.value = '';
+    mediaPreview.innerHTML = '';
+    mediaFiles = [];
+  });
+</script>
+
+</body>
+</html>

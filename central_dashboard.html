@@ -1,0 +1,201 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Central Government Dashboard</title>
+
+<!-- Tailwind CSS -->
+<script src="https://cdn.tailwindcss.com"></script>
+
+<!-- Leaflet CSS & JS -->
+<link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css"/>
+<script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+
+<!-- Chart.js -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+<style>
+  #map { height: 400px; border-radius: 0.75rem; }
+  /* removed @apply - replaced with plain CSS */
+  .card {
+    background-color: white;
+    border-radius: 1rem;   /* rounded-2xl */
+    padding: 1rem;         /* p-4 */
+    box-shadow: 0 4px 6px rgba(0,0,0,0.1); /* shadow-lg */
+    transition: transform 0.2s ease;
+  }
+  .card:hover {
+    transform: scale(1.05);
+  }
+</style>
+</head>
+<body class="bg-gray-50 font-sans min-h-screen">
+
+<!-- Header -->
+<header class="bg-white shadow p-6 flex justify-between items-center">
+  <h1 class="text-2xl font-bold text-gray-800">Central Government Dashboard</h1>
+  <div class="flex items-center gap-4">
+    <span class="text-gray-600 font-medium">Admin</span>
+    <div class="bg-gray-300 rounded-full w-10 h-10"></div>
+  </div>
+</header>
+
+<main class="p-6 max-w-7xl mx-auto flex flex-col gap-6">
+
+  <!-- Filters -->
+  <div class="flex flex-wrap gap-4 mb-4">
+    <select id="stateFilter" class="border rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500">
+      <option value="">All States</option>
+      <option value="Delhi">Delhi</option>
+      <option value="Maharashtra">Maharashtra</option>
+      <option value="Karnataka">Karnataka</option>
+    </select>
+
+    <select id="categoryFilter" class="border rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500">
+      <option value="">All Categories</option>
+      <option value="roads">Roads</option>
+      <option value="electricity">Electricity</option>
+      <option value="water">Water</option>
+      <option value="sanitation">Sanitation</option>
+      <option value="other">Other</option>
+    </select>
+
+    <select id="statusFilter" class="border rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500">
+      <option value="">All Status</option>
+      <option value="Pending">Pending</option>
+      <option value="In Progress">In Progress</option>
+      <option value="Resolved">Resolved</option>
+    </select>
+
+    <button id="resetFilters" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg shadow">Reset Filters</button>
+  </div>
+
+  <!-- Map -->
+  <div id="map"></div>
+
+  <!-- Dashboard Cards -->
+  <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mt-6">
+    <div class="card">
+      <h2 class="font-bold text-lg text-gray-800">Total Complaints</h2>
+      <p id="totalComplaints" class="text-3xl font-bold text-blue-600 mt-2">0</p>
+    </div>
+    <div class="card">
+      <h2 class="font-bold text-lg text-gray-800">Pending</h2>
+      <p id="pendingComplaints" class="text-3xl font-bold text-yellow-500 mt-2">0</p>
+    </div>
+    <div class="card">
+      <h2 class="font-bold text-lg text-gray-800">In Progress</h2>
+      <p id="inProgressComplaints" class="text-3xl font-bold text-blue-500 mt-2">0</p>
+    </div>
+    <div class="card">
+      <h2 class="font-bold text-lg text-gray-800">Resolved</h2>
+      <p id="resolvedComplaints" class="text-3xl font-bold text-green-500 mt-2">0</p>
+    </div>
+  </div>
+
+  <!-- Complaint Trends Chart -->
+  <div class="card mt-6">
+    <h2 class="font-bold text-gray-800 mb-4">Complaint Trends by Category</h2>
+    <canvas id="complaintChart" height="150"></canvas>
+  </div>
+
+</main>
+
+<script>
+  // Sample complaints data
+  let complaints = JSON.parse(localStorage.getItem('complaints')) || [
+    { state:'Delhi', category:'roads', status:'Pending', location:'28.7041,77.1025' },
+    { state:'Maharashtra', category:'water', status:'Resolved', location:'19.0760,72.8777' },
+    { state:'Karnataka', category:'electricity', status:'In Progress', location:'12.9716,77.5946' },
+  ];
+
+  // Initialize map
+  const map = L.map('map').setView([20.5937, 78.9629], 5);
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19 }).addTo(map);
+
+  let markers = [];
+  function loadMapMarkers() {
+    markers.forEach(m => map.removeLayer(m));
+    markers = [];
+
+    const stateFilter = document.getElementById('stateFilter').value;
+    const categoryFilter = document.getElementById('categoryFilter').value;
+    const statusFilter = document.getElementById('statusFilter').value;
+
+    complaints.forEach(c => {
+      if(stateFilter && c.state !== stateFilter) return;
+      if(categoryFilter && c.category !== categoryFilter) return;
+      if(statusFilter && c.status !== statusFilter) return;
+
+      const [lat, lng] = c.location.split(',').map(Number);
+      const marker = L.marker([lat, lng]).addTo(map)
+        .bindPopup(`<b>State:</b> ${c.state}<br><b>Category:</b> ${c.category}<br><b>Status:</b> ${c.status}`);
+      markers.push(marker);
+    });
+
+    updateDashboardCounts();
+    updateChart();
+  }
+
+  // Dashboard counts
+  function updateDashboardCounts() {
+    const filtered = complaints.filter(c => {
+      const stateFilter = document.getElementById('stateFilter').value;
+      const categoryFilter = document.getElementById('categoryFilter').value;
+      const statusFilter = document.getElementById('statusFilter').value;
+      if(stateFilter && c.state !== stateFilter) return false;
+      if(categoryFilter && c.category !== categoryFilter) return false;
+      if(statusFilter && c.status !== statusFilter) return false;
+      return true;
+    });
+
+    document.getElementById('totalComplaints').innerText = filtered.length;
+    document.getElementById('pendingComplaints').innerText = filtered.filter(c=>c.status==='Pending').length;
+    document.getElementById('inProgressComplaints').innerText = filtered.filter(c=>c.status==='In Progress').length;
+    document.getElementById('resolvedComplaints').innerText = filtered.filter(c=>c.status==='Resolved').length;
+  }
+
+  // Chart.js - complaint trends
+  const ctx = document.getElementById('complaintChart').getContext('2d');
+  const complaintChart = new Chart(ctx, {
+    type: 'bar',
+    data: {
+      labels: ['Roads','Electricity','Water','Sanitation','Other'],
+      datasets: [{
+        label: 'Complaints Count',
+        data: [],
+        backgroundColor: ['#f59e0b','#3b82f6','#10b981','#ef4444','#8b5cf6']
+      }]
+    },
+    options: {
+      responsive:true,
+      plugins: { legend:{ display:false } },
+      scales: { y: { beginAtZero:true } }
+    }
+  });
+
+  function updateChart() {
+    const categories = ['roads','electricity','water','sanitation','other'];
+    complaintChart.data.datasets[0].data = categories.map(cat => 
+      complaints.filter(c=>c.category===cat).length
+    );
+    complaintChart.update();
+  }
+
+  // Filters events
+  document.getElementById('stateFilter').addEventListener('change', loadMapMarkers);
+  document.getElementById('categoryFilter').addEventListener('change', loadMapMarkers);
+  document.getElementById('statusFilter').addEventListener('change', loadMapMarkers);
+  document.getElementById('resetFilters').addEventListener('click', ()=>{
+    document.getElementById('stateFilter').value='';
+    document.getElementById('categoryFilter').value='';
+    document.getElementById('statusFilter').value='';
+    loadMapMarkers();
+  });
+
+  loadMapMarkers();
+</script>
+
+</body>
+</html>

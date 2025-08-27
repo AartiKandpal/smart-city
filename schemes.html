@@ -1,0 +1,154 @@
+    <!DOCTYPE html>
+    <html lang="en">
+    <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Eligible Schemes</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    </head>
+    <body class="bg-gray-50 min-h-screen font-sans flex flex-col">
+
+    <header class="bg-white shadow px-6 py-4 flex justify-between items-center">
+    <h1 class="text-xl font-bold text-gray-800">Citizen Portal</h1>
+    <nav class="flex gap-6">
+        
+    </nav>
+    </header>
+
+    <main class="flex-1 p-6 flex flex-col items-center space-y-6">
+    <!-- Scheme Selection Form -->
+    <div class="bg-white shadow-xl rounded-2xl p-6 w-full max-w-lg">
+        <h2 class="text-2xl font-bold text-center mb-4">Find Eligible Schemes</h2>
+
+        <form id="schemeForm" class="space-y-4">
+        <div>
+            <label class="block font-medium text-gray-700 mb-1">Category</label>
+            <select id="category" class="w-full border rounded-lg p-2">
+            <option value="">-- Select --</option>
+            <option value="SC">SC</option>
+            <option value="ST">ST</option>
+            <option value="OBC">OBC</option>
+            <option value="General">General</option>
+            </select>
+        </div>
+
+        <div>
+            <label class="block font-medium text-gray-700 mb-1">Annual Income</label>
+            <input type="number" id="income" class="w-full border rounded-lg p-2" placeholder="Enter your annual income"/>
+        </div>
+
+        <div>
+            <label class="block font-medium text-gray-700 mb-1">Disability</label>
+            <select id="disability" class="w-full border rounded-lg p-2">
+            <option value="">-- Select --</option>
+            <option value="Yes">Yes</option>
+            <option value="No">No</option>
+            </select>
+        </div>
+
+        <button type="button" onclick="checkEligibility()" class="w-full bg-blue-600 text-white font-semibold py-2 rounded-lg hover:bg-blue-700">
+            Show Eligible Schemes
+        </button>
+        </form>
+
+        <div id="results" class="mt-6 hidden">
+        <h3 class="text-xl font-semibold mb-3">Eligible Schemes:</h3>
+        <ul id="schemeList" class="space-y-3 text-gray-700"></ul>
+        </div>
+    </div>
+
+    <!-- Applied Schemes Dashboard -->
+    <div id="appliedSchemesSection" class="bg-white shadow-xl rounded-2xl p-6 w-full max-w-lg">
+        <h2 class="text-2xl font-bold text-center mb-4">My Applied Schemes</h2>
+        <ul id="appliedSchemeList" class="space-y-3 text-gray-700">
+        <!-- Applied schemes will appear here -->
+        </ul>
+    </div>
+    </main>
+
+    <script>
+    // Example schemes database
+    const schemes = [
+        {name: "Post-Matric Scholarship for SC/ST Students", category: ["SC","ST"], maxIncome: 250000, disability: "Any"},
+        {name: "OBC Merit Scholarship Scheme", category: ["OBC"], maxIncome: 400000, disability: "Any"},
+        {name: "Disability Pension Scheme", category: ["SC","ST","OBC","General"], maxIncome: 500000, disability: "Yes"},
+        {name: "Scholarship for Students with Disabilities", category: ["SC","ST","OBC","General"], maxIncome: 500000, disability: "Yes"},
+        {name: "EWS Scholarship", category: ["General"], maxIncome: 200000, disability: "Any"}
+    ];
+
+    // Load applied schemes from localStorage
+    let appliedSchemes = JSON.parse(localStorage.getItem('appliedSchemes')) || [];
+
+    function renderAppliedSchemes() {
+        const appliedSchemeList = document.getElementById("appliedSchemeList");
+        appliedSchemeList.innerHTML = "";
+        if(appliedSchemes.length === 0){
+        appliedSchemeList.innerHTML = '<li class="text-gray-500">No schemes applied yet.</li>';
+        return;
+        }
+        appliedSchemes.forEach(s => {
+        const li = document.createElement("li");
+        li.className = "border p-3 rounded-lg shadow-sm flex justify-between items-center";
+        li.innerHTML = `
+            <span>${s.scheme} <small class="text-gray-500">(Applied on: ${s.date})</small></span>
+        `;
+        appliedSchemeList.appendChild(li);
+        });
+    }
+
+    renderAppliedSchemes();
+
+    function checkEligibility() {
+        const category = document.getElementById("category").value;
+        const income = parseInt(document.getElementById("income").value);
+        const disability = document.getElementById("disability").value;
+
+        const schemeList = document.getElementById("schemeList");
+        schemeList.innerHTML = "";
+        let eligible = [];
+
+        schemes.forEach(s => {
+        if(s.category.includes(category) &&
+            income <= s.maxIncome &&
+            (s.disability === "Any" || s.disability === disability)
+        ) eligible.push(s);
+        });
+
+        if(eligible.length === 0){
+        schemeList.innerHTML = '<li>❌ No scheme found based on your details.</li>';
+        } else {
+        eligible.forEach(s => {
+            const li = document.createElement("li");
+            li.className = "border p-3 rounded-lg shadow-sm flex justify-between items-center";
+            li.innerHTML = `
+            <span>${s.name}</span>
+            <button class="bg-green-600 text-white py-1 px-3 rounded hover:bg-green-700" onclick="applyScheme('${s.name}')">Apply Now</button>
+            `;
+            schemeList.appendChild(li);
+        });
+        }
+
+        document.getElementById("results").classList.remove("hidden");
+    }
+
+    function applyScheme(schemeName) {
+        alert(`🎉 You have successfully applied for: ${schemeName}`);
+        const applied = {scheme: schemeName, date: new Date().toLocaleDateString()};
+        appliedSchemes.push(applied);
+        localStorage.setItem('appliedSchemes', JSON.stringify(appliedSchemes));
+        renderAppliedSchemes();
+    }
+    </script>
+    <script>
+    function applyScheme(schemeName){
+        // Save selected scheme in localStorage
+        localStorage.setItem('selectedScheme', schemeName);
+        // Redirect to application form
+        window.location.href = 'apply.html';
+    }
+    </script>
+
+
+    </body>
+    </html>
+

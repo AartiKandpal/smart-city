@@ -1,0 +1,71 @@
+{
+  "info": {
+    "name": "SIH Backend Starter",
+    "_postman_id": "sih-backend-starter-collection",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "Health",
+      "request": {
+        "method": "GET",
+        "url": "http://127.0.0.1:5000/api/health"
+      }
+    },
+    {
+      "name": "Create Complaint",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"user_name\": \"Raj\",\n  \"title\": \"Pothole near bus stop\",\n  \"description\": \"Large pothole causing traffic\",\n  \"lat\": 28.61,\n  \"lng\": 77.2,\n  \"media_urls\": [\n    \"https://example.com/pothole.jpg\"\n  ]\n}"
+        },
+        "url": "http://127.0.0.1:5000/api/complaints"
+      }
+    },
+    {
+      "name": "List Complaints",
+      "request": {
+        "method": "GET",
+        "url": "http://127.0.0.1:5000/api/complaints"
+      }
+    },
+    {
+      "name": "Update Status -> in_progress",
+      "request": {
+        "method": "PATCH",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\"status\":\"in_progress\"}"
+        },
+        "url": "http://127.0.0.1:5000/api/complaints/1/status"
+      }
+    },
+    {
+      "name": "Analytics",
+      "request": {
+        "method": "GET",
+        "url": "http://127.0.0.1:5000/api/analytics"
+      }
+    },
+    {
+      "name": "Schemes (example)",
+      "request": {
+        "method": "GET",
+        "url": "http://127.0.0.1:5000/api/schemes?age=21&income=150000&occupation=student"
+      }
+    }
+  ]
+}

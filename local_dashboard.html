@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Local Government Dashboard</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css"/>
+  <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+  <style>
+    #map { height: 500px; border-radius: 0.75rem; }
+    .info-media img, .info-media video { 
+      max-width: 100px; 
+      max-height: 100px; 
+      margin: 2px; 
+      border-radius: 0.25rem; 
+    }
+  </style>
+</head>
+<body class="bg-gray-50 font-sans min-h-screen">
+
+  <header class="bg-white shadow p-6 flex justify-between items-center">
+    <h1 class="text-2xl font-bold text-gray-800">Local Government Dashboard</h1>
+    <div class="flex gap-4 items-center">
+      <span class="text-gray-600 font-medium">Admin</span>
+      <div class="bg-gray-300 rounded-full h-8 w-8"></div>
+    </div>
+  </header>
+
+  <main class="p-6">
+    <section class="bg-white rounded-2xl p-4 shadow-sm mb-6 flex flex-wrap gap-4 items-center">
+      <h2 class="text-lg font-bold text-gray-800">Filters:</h2>
+      
+      <select id="categoryFilter" class="border rounded-lg p-2 text-gray-700">
+        <option value="">All Categories</option>
+        <option value="Roads">Roads</option>
+        <option value="Electricity">Electricity</option>
+        <option value="Water">Water</option>
+        <option value="Sanitation">Sanitation</option>
+        <option value="Other">Other</option>
+      </select>
+      
+      <select id="statusFilter" class="border rounded-lg p-2 text-gray-700">
+        <option value="">All Statuses</option>
+        <option value="pending">Pending</option>
+        <option value="in_progress">In Progress</option>
+        <option value="resolved">Resolved</option>
+      </select>
+      
+      <button id="resetFilters" class="bg-gray-200 text-gray-700 py-2 px-4 rounded-lg font-medium hover:bg-gray-300 transition-colors">Reset Filters</button>
+    </section>
+
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+
+      <section class="md:col-span-2 bg-white rounded-2xl shadow-xl p-4">
+        <h2 class="text-2xl font-bold mb-4">Complaints Map</h2>
+        <div id="map"></div>
+      </section>
+
+      <section class="flex flex-col gap-4 overflow-y-auto max-h-[500px]">
+        <h2 class="text-2xl font-bold text-gray-800">Complaints List</h2>
+        <div id="dashboard" class="space-y-4">
+          </div>
+      </section>
+    </div>
+  </main>
+
+<script>
+  let map;
+  let markers = [];
+  let allComplaints = [];
+
+  function initMap() {
+    const cityCenter = [28.7041, 77.1025]; // Delhi center
+    map = L.map('map').setView(cityCenter, 12);
+
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      maxZoom: 19,
+      attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
+    }).addTo(map);
+
+    fetchComplaints();
+  }
+
+  async function fetchComplaints() {
+    try {
+      const response = await fetch('http://127.0.0.1:5000/api/complaints');
+      if (response.ok) {
+        allComplaints = await response.json();
+        loadMarkers();
+      } else {
+        console.error('Failed to fetch complaints from API');
+      }
+    } catch (error) {
+      console.error('Network error fetching complaints:', error);
+    }
+  }
+
+  function loadMarkers() {
+    markers.forEach(m => map.removeLayer(m));
+    markers = [];
+    const dashboard = document.getElementById('dashboard');
+    dashboard.innerHTML = '';
+
+    const categoryFilter = document.getElementById('categoryFilter').value;
+    const statusFilter = document.getElementById('statusFilter').value;
+
+    const filteredComplaints = allComplaints.filter(c => {
+      if (categoryFilter && c.category !== categoryFilter) return false;
+      if (statusFilter && c.status !== statusFilter) return false;
+      return true;
+    });
+
+    filteredComplaints.forEach(c => {
+      if (c.lat && c.lng) {
+        const marker = L.marker([c.lat, c.lng]).addTo(map);
+
+        let mediaHtml = '';
+        if (c.media_urls && c.media_urls.length) {
+          c.media_urls.forEach(url => {
+            if (url.startsWith('data:image/')) {
+              mediaHtml += `<img src="${url}" />`;
+            } else if (url.startsWith('data:video/')) {
+              mediaHtml += `<video src="${url}" controls></video>`;
+            } else {
+                mediaHtml += `<img src="http://127.0.0.1:5000/${url}" />`;
+            }
+          });
+        }
+
+        const popupContent = `
+          <div class="info-window">
+            <b>Category:</b> ${c.category}<br>
+            <b>Description:</b> ${c.description}<br>
+            <b>Status:</b> ${c.status}<br>
+            <div class="info-media flex flex-wrap mt-2">${mediaHtml}</div>
+          </div>
+        `;
+        marker.bindPopup(popupContent);
+        markers.push(marker);
+
+        const card = document.createElement('div');
+        card.className = `bg-white rounded-2xl p-4 shadow hover:shadow-lg transition-all border-l-4 ${
+          c.status === 'pending' ? 'border-yellow-500' : c.status === 'in_progress' ? 'border-blue-500' : 'border-green-500'
+        }`;
+        card.innerHTML = `
+          <p class="font-semibold text-gray-800">Category: ${c.category}</p>
+          <p class="text-gray-700 mt-1">Description: ${c.description}</p>
+          <p class="text-gray-600 mt-1">Status: <strong>${c.status}</strong></p>
+          <p class="text-gray-600 mt-1">Location: ${c.lat}, ${c.lng}</p>
+        `;
+        dashboard.appendChild(card);
+      }
+    });
+  }
+
+  document.getElementById('categoryFilter').addEventListener('change', loadMarkers);
+  document.getElementById('statusFilter').addEventListener('change', loadMarkers);
+  document.getElementById('resetFilters').addEventListener('click', () => {
+    document.getElementById('categoryFilter').value = '';
+    document.getElementById('statusFilter').value = '';
+    loadMarkers();
+  });
+
+  initMap();
+</script>
+</body>
+</html>
